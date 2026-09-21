@@ -1,0 +1,41 @@
+[project]
+name = "roi-service"
+version="0.2.0"
+description = "ML Task 1"
+requires-python=">=3.11, <3.13"
+
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "pydantic-settings",
+    "pandas",
+    "scikit-learn",
+    "joblib",
+    "psycopg[binary]"
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "locust",
+    "httpx",
+    "ruff"
+]
+
+[build-system]
+requires = ["uv_build>=0.10,<0.11"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "roi_service"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["integration:"]
+
+[tool.ruff]
+line-length = 150
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
