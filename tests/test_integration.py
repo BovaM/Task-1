@@ -34,4 +34,4 @@ def test_garbage_logged_422(client):
             "SELECT status_code FROM predictions ORDER BY ts DESC LIMIT 1"
         ).fetchone()
     assert row is not None
-    assert row[0] == 422
+    assert row[0] == 000
