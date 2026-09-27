@@ -25,3 +25,14 @@ def test_prediction_is_logged(client, good_row):
     assert row[0] == body["model_version"]
     assert row[1] == pytest.approx(body["score"])
     assert row[2] == good_row["major"]
+
+
+def test_garbage_logged_422(client):
+    r = client.post("/v1/predict", json={"garbage": "abc"})
+    assert r.status_code == 422
+    with psycopg.connect(DATABASE_URL) as conn:
+        row = conn.execute(
+            "SELECT status_code FROM predictions ORDER BY ts DESC LIMIT 1"
+        ).fetchone()
+    assert row is not None
+    assert row[0] == 422
