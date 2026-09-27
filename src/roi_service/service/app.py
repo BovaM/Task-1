@@ -1,22 +1,20 @@
+import os
 import time
 import uuid
-import os
-
 from contextlib import asynccontextmanager
-
-from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
-from starlette.background import BackgroundTask
 
 import joblib
 import pandas as pd
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
-
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from starlette.background import BackgroundTask
 
 from roi_service import db
 from roi_service.config import settings
+
 
 class Features(BaseModel):
     model_config = {"extra": "forbid"}
