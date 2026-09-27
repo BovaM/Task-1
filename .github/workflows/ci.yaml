@@ -80,7 +80,7 @@ jobs:
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          kubectl create secret generic roi-secrets \
+          kubectl create secret generic roi-service-secrets \
           --from-literal=POSTGRES_PASSWORD="$DB_PASSWORD" \
           --from-literal=DATABASE_URL="postgresql://postgres:$DB_PASSWORD@postgres:5432/roi_service"
       
@@ -92,12 +92,12 @@ jobs:
       - name: сервис
         run: |
           kubectl apply -f k8s/
-          kubectl set image deploy/roi_service api="$IMAGE"
-          kubectl rollout status deploy/roi_service --timeout=120s
+          kubectl set image deploy/roi-service api="$IMAGE"
+          kubectl rollout status deploy/roi-service --timeout=120s
 
       - name: smoke
         run: |
-          kubectl port-forward svc/roi_service 8080:80 &
+          kubectl port-forward svc/roi-service 8080:80 &
           sleep 5
 
           curl --fail -s localhost:8080/health; echo
@@ -118,5 +118,5 @@ jobs:
 
         run: |
           kubectl get pods -o wide
-          kubectl describe deploy/roi_service | tail -20
-          kubectl logs deploy/roi_service --tail=30 || true
+          kubectl describe deploy/roi-service | tail -20
+          kubectl logs deploy/roi-service --tail=30 || true

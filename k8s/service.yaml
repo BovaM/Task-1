@@ -5,7 +5,7 @@ metadata:
 spec:
   type: ClusterIP
   selector:
-    app: roi_service
+    app: roi-service
   ports:
     - port: 80
       targetPort: 8000

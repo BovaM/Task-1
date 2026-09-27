@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: roi_service
+  name: roi-service
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: roi_service
+      app: roi-service
   template:
     metadata:
       labels:
-        app: roi_service
+        app: roi-service
     spec:
       containers:
         - name: api
@@ -19,8 +19,8 @@ spec:
           ports:
             - containerPort: 8000
           envFrom:
-            - configMapRef: {name: roi_service-config}
-            - secretRef: {name: roi_service-secrets}
+            - configMapRef: {name: roi-service-config}
+            - secretRef: {name: roi-service-secrets}
           startupProbe:
             httpGet: {path: /health, port: 8000}
             failureThreshold: 30
