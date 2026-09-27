@@ -1,5 +1,5 @@
 [project]
-name = "roi-service"
+name = "roi_service"
 version="0.2.0"
 description = "ML Task 1"
 requires-python=">=3.11, <3.13"

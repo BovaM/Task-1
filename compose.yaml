@@ -1,10 +1,10 @@
 services:
   api:
     build: .
-    image: roi-service:1.0
+    image: roi_service:1.0
     ports: ["8000:8000"]
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/roi-service
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/roi_service
     depends_on:
       db:
         condition: service_healthy
@@ -13,7 +13,7 @@ services:
     image: postgres:16
     environment:
      POSTGRES_PASSWORD: postgres
-     POSTGRES_DB: roi-service
+     POSTGRES_DB: roi_service
     ports: ["5432:5432"]
     volumes: ["pgdata:/var/lib/postgresql/data"]
     healthcheck:

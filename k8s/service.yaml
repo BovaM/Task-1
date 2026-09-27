@@ -1,11 +1,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: roi-service
+  name: roi_service
 spec:
   type: ClusterIP
   selector:
-    app: roi-service
+    app: roi_service
   ports:
     - port: 80
       targetPort: 8000

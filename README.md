@@ -15,23 +15,23 @@ uv run pytest
 docker compose up -d --build
 curl.exe -X POST localhost:8000/v1/predict -H "Content-Type: application/json" -d "@good.json"
 curl.exe -i -X POST localhost:8000/v1/predict -H "Content-Type: application/json" -d '{"foo": 1}'
-docker compose exec db psql -U postgres -d roi-service -c "SELECT request_id, score, latency_ms, status_code FROM predictions;"
+docker compose exec db psql -U postgres -d roi_service -c "SELECT request_id, score, latency_ms, status_code FROM predictions;"
 ```
 
 ### Кластеры и кубернетис
 ```powershell
 kind create cluster --name mlpro
-kind load docker-image roi-service:1.0 --name mlpro
+kind load docker-image roi_service:1.0 --name mlpro
 kubectl apply -f k8s/
 kubectl rollout status deploy/postgres
-kubectl rollout status deploy/roi-service
-kubectl port-forward svc/roi-service 8080:80
+kubectl rollout status deploy/roi_service
+kubectl port-forward svc/roi_service 8080:80
 ```
 
 После запуска
 ```powershell
 curl.exe -X POST localhost:8080/v1/predict -H "Content-Type: application/json" -d "@good.json"
-kubectl exec -it deploy/postgres -- psql -U postgres -d roi-service -c "SELECT request_id, score, status_code FROM predictions;"
+kubectl exec -it deploy/postgres -- psql -U postgres -d roi_service -c "SELECT request_id, score, status_code FROM predictions;"
 ```
 
 

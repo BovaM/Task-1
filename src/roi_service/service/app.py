@@ -49,7 +49,7 @@ async def lifespan(app: FastAPI):
     app.state.pipeline = None
 
 
-app = FastAPI(title="roi-service", version="1.0", lifespan=lifespan)
+app = FastAPI(title="roi_service", version="1.0", lifespan=lifespan)
 
 @app.get("/health")
 def health():

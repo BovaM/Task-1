@@ -983,7 +983,7 @@ wheels = [
 ]
 
 [[package]]
-name = "roi-service"
+name = "roi_service"
 version = "0.2.0"
 source = { editable = "." }
 dependencies = [
