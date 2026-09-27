@@ -99,18 +99,17 @@ jobs:
           sleep 5
 
           curl --fail -s localhost:8080/health; echo
-          curl --fail -s -X POST localhost:8080/v1/predict \
-            -H "Content-Type: application/json" -d @good.json; echo
-          
+
+           curl --fail -s -X POST localhost:8080/v1/predict \
+            -H "Content-Type: application/json" -d @good.json \
+            | python3 -c "import json,sys; r=json.load(sys.stdin); assert 0 <= r['score'] <= 1, r"
+
           sleep 2
 
           kubectl exec deploy/postgres -- psql -U postgres -d roi_service \
             -tc "SELECT count(*) FROM predictions" | grep -q 1
           
-          curl --fail -s -X POST localhost:8080/v1/predict \
-            -H "Content-Type: application/json" -d @good.json; echo
-            | python3 -c "import json,sys; r=json.load(sys.stdin); assert 0 <= r['score'] <= 1, r"      
-
+          
       - name: диагностика
         if: failure()
 
