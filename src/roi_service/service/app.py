@@ -1,5 +1,6 @@
 import time
 import uuid
+import os
 
 from contextlib import asynccontextmanager
 
@@ -54,7 +55,7 @@ app = FastAPI(title="roi-service", version="1.0", lifespan=lifespan)
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_version": getattr(app.state, "version", "unknown")}
+    return {"status": "ok", "threshold": os.environ.get("PREDICTION_THRESHOLD")}
 
 @app.get("/ready")
 def ready():
