@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: roi_service:1.0
+          image: roi-service:1.0
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: roi_service
+  name: roi-service
 spec:
   type: ClusterIP
   selector:
