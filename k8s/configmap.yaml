@@ -4,5 +4,5 @@ metadata:
   name: roi-service-config
 data:
   LOG_LEVEL: "INFO"
-  MODEL_PATH: artifacts/model.joblib
+  MODEL_PATH: artifacts/no_model.joblib
   PREDICTION_THRESHOLD: "0.5"
