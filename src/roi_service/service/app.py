@@ -1,30 +1,26 @@
+import json
 import os
 import time
 import uuid
 from contextlib import asynccontextmanager
-import json
 from pathlib import Path
 
 import joblib
+import mlflow
+import mlflow.sklearn
 import pandas as pd
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from mlflow import MlflowClient
+from prometheus_client import Counter, Gauge, Histogram
+from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
-
-from prometheus_client import Counter, Gauge, Histogram
-from prometheus_fastapi_instrumentator import Instrumentator
-
-
 from roi_service import db
 from roi_service.config import settings
-
-import mlflow
-import mlflow.sklearn
-from mlflow import MlflowClient
 
 PREDICTIONS = Counter("roi_predictions_total", "Predictions by class", ["churn"])
 SCORE = Histogram("roi_score", "Predicted roi", buckets=[i / 10 for i in range(11)])
