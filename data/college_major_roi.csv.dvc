@@ -1,5 +1,5 @@
 outs:
-- md5: 35712f38fa49e22b70af2551ad676272
-  size: 3235264
+- md5: 2b2e41f9821aa95dfe53a167ca35a6d0
+  size: 3231904
   hash: md5
   path: college_major_roi.csv
