@@ -4,7 +4,7 @@ metadata:
   name: roi-service-config
 data:
   LOG_LEVEL: "INFO"
-  MODEL_PATH: artifact/model.joblib
+  MODEL_PATH: artifacts/model.joblib
   MLFLOW_TRACKING_URI: http://mlflow.mlops:5000
   MODEL_NAME: roi
   MODEL_ALIAS: champion

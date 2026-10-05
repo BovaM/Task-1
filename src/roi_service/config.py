@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    model_path: str = "artifact/model.joblib"
+    model_path: str = "artifacts/model.joblib"
     model_name: str | None = None
     model_alias: str = "champion"
     mlflow_tracking_url: str = "http://127.0.0.1:5000"
