@@ -63,7 +63,7 @@ jobs:
     permissions: {contents: read, packages: read}
 
     env:
-      KIND_CLUSTER: mlpro
+      KIND_CLUSTER: not_mlpro
 
     steps:
       - uses: actions/checkout@v7
