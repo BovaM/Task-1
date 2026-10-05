@@ -1,4 +1,4 @@
-from locustfile import HttpUser, task, between
+from locustfile import HttpUser, between, task
 
 
 class RoiUser(HttpUser):

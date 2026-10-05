@@ -5,24 +5,23 @@
 Новая версия всегда получает алиас challenger. Алиас champion она получает, только если
 ROC-AUC на отложенной выборке лучше, чем у текущего champion (или champion ещё нет).
 """
+import hashlib
 import json
 import os
 from pathlib import Path
-import hashlib
 
+import matplotlib.pyplot as plt
 import mlflow
 import pandas as pd
-import sklearn
 from mlflow import MlflowClient
 from mlflow.exceptions import MlflowException
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score
+from sklearn.metrics import average_precision_score, precision_recall_curve
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
-import matplotlib.pyplot as plt
 
 from roi_service.config import settings
 
