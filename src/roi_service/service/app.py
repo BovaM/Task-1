@@ -2,6 +2,8 @@ import os
 import time
 import uuid
 from contextlib import asynccontextmanager
+import json
+from pathlib import Path
 
 import joblib
 import pandas as pd
@@ -12,9 +14,22 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
 
+
+from prometheus_client import Counter, Gauge, Histogram
+from prometheus_fastapi_instrumentator import Instrumentator
+
+
 from roi_service import db
 from roi_service.config import settings
 
+import mlflow
+import mlflow.sklearn
+from mlflow import MlflowClient
+
+PREDICTIONS = Counter("roi_predictions_total", "Predictions by class", ["churn"])
+SCORE = Histogram("roi_score", "Predicted roi", buckets=[i / 10 for i in range(11)])
+MODEL_INFO = Gauge("roi_model_info", "Model loaded by this pod", ["version"])
+LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1)  # штатные 0.1, 0.5, 1 с слишком грубые
 
 class Features(BaseModel):
     model_config = {"extra": "forbid"}
@@ -39,33 +54,77 @@ class Prediction(BaseModel):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    bundle = joblib.load(settings.model_path)
-    app.state.pipeline = bundle["pipeline"]
-    app.state.meta = bundle["metadata"]
-    app.state.version = bundle["metadata"]["model_version"]
+    model_name = os.getenv("MODEL_NAME")
+    model_alias = os.getenv("MODEL_ALIAS", "champion")
+
+    if model_name:
+        tracking_uri = os.getenv(
+            "MLFLOW_TRACKING_URI",
+            "http://mlflow.mlops:5000",
+        )
+
+        mlflow.set_tracking_uri(tracking_uri)
+        client = MlflowClient()
+
+        model_version = client.get_model_version_by_alias(
+            model_name,
+            model_alias,
+        )
+
+        model_uri = f"models:/{model_name}@{model_alias}"
+
+        app.state.pipeline = mlflow.sklearn.load_model(model_uri)
+        app.state.version = model_version.version
+
+        metadata_path = client.download_artifacts(
+            model_version.run_id,
+            "metadata.json",
+        )
+
+        metadata = json.loads(
+            Path(metadata_path).read_text(encoding="utf-8")
+        )
+
+        app.state.meta = metadata
+        app.state.threshold = float(metadata.get("threshold", 0.5))
+
+    else:
+        bundle = joblib.load(settings.model_path)
+
+        app.state.pipeline = bundle["pipeline"]
+        app.state.meta = bundle["metadata"]
+        app.state.version = bundle["metadata"]["model_version"]
+        app.state.threshold = float(
+            bundle["metadata"].get("threshold", 0.5)
+        )
 
     db.init()
+
     yield
+
     app.state.pipeline = None
 
+app = FastAPI(title="roi-service", version="1.0", lifespan=lifespan)
+Instrumentator().instrument(app, latency_lowr_buckets=LATENCY_BUCKETS).expose(app)
 
-app = FastAPI(title="roi_service", version="1.0", lifespan=lifespan)
 
 @app.get("/health")
 def health():
     return {
         "status": "ok",
         "model_version": getattr(app.state, "version", "unknown"),
-        "prediction_threshold": os.environ.get("PREDICTION_THRESHOLD"),
+        "prediction_threshold": getattr(app.state, "threshold", None),
     }
 
 @app.get("/ready")
 def ready():
-    if getattr(app.state, "pipeline", "None") is  None:
-        raise HTTPException(status_code=503, detail="Model not loaded")
-    
-    return {"status": "ready"}
+    if getattr(app.state, "pipeline", None) is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded",
+        )
 
+    return {"status": "ready"}
 
 
 @app.post("/v1/predict")
@@ -83,6 +142,9 @@ def predict(x: Features, bg: BackgroundTasks) -> Prediction:
 
     churn = score >= app.state.meta["threshold"]
 
+    PREDICTIONS.labels(str(churn).lower()).inc()
+    SCORE.observe(score)
+    
     return Prediction(score=score, churn=churn, model_version = app.state.version, request_id=request_id, latency_ms=latency_ms)
 
 
