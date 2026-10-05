@@ -5,7 +5,7 @@ metadata:
 spec:
   ingressClassName: traefik
   rules:
-    - host: roi-broken.localhost
+    - host: roi.localhost
       http:
         paths:
           - path: /
