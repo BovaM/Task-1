@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: roi-service
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: roi.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: roi-service
+                port:
+                  number: 80

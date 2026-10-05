@@ -1,6 +1,6 @@
 """Обучение модели оттока: проверка данных, обучение, запись в MLflow, регистрация и гейт.
 
-  MLFLOW_TRACKING_URI=http://127.0.0.1:5000 uv run python -m churn.train
+  MLFLOW_TRACKING_URI=http://127.0.0.1:5000 uv run python -m roi.train
 
 Новая версия всегда получает алиас challenger. Алиас champion она получает, только если
 ROC-AUC на отложенной выборке лучше, чем у текущего champion (или champion ещё нет).
@@ -8,6 +8,7 @@ ROC-AUC на отложенной выборке лучше, чем у теку�
 import json
 import os
 from pathlib import Path
+import hashlib
 
 import mlflow
 import pandas as pd
@@ -21,89 +22,229 @@ from sklearn.metrics import average_precision_score, precision_recall_curve, roc
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import matplotlib.pyplot as plt
 
-DATA_PATH = Path(os.getenv("DATA_PATH", "datasets/telco_churn.csv"))
-MODEL_NAME = os.getenv("MODEL_NAME", "churn")
-EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "churn")
+DATA_PATH = Path(os.getenv("DATA_PATH", "data/college_major_roi.csv"))
+MODEL_NAME = os.getenv("MODEL_NAME", "roi")
+EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "roi")
+
 C = float(os.getenv("C", "1.0"))
 MIN_GAIN = float(os.getenv("GATE_MIN_GAIN", "0.0"))
-SEED = 42
-SKOPS_TRUSTED = ["numpy.dtype", "sklearn.compose._column_transformer._RemainderColsList"]
 
-NUMERIC = ["tenure", "MonthlyCharges", "TotalCharges", "SeniorCitizen"]
-CATEGORICAL = ["gender", "Partner", "Dependents", "PhoneService", "MultipleLines", "InternetService",
-               "OnlineSecurity", "OnlineBackup", "DeviceProtection", "TechSupport", "StreamingTV",
-               "StreamingMovies", "Contract", "PaperlessBilling", "PaymentMethod"]
+SEED = 42
+
+SKOPS_TRUSTED = [
+    "numpy.dtype",
+    "sklearn.compose._column_transformer._RemainderColsList",
+]
+
+
+NUMERIC = [
+    "institution_selectivity_pctile",
+    "gpa",
+    "had_internship",
+    "completed_on_time",
+    "net_cost_usd",
+    "debt_usd",
+    "hs_baseline_10yr_usd",
+]
+
+CATEGORICAL = [
+    "major",
+    "major_category",
+    "institution_tier",
+    "region",
+]
+
+TARGET = "positive_roi"
 
 
 def load_and_validate(path: Path) -> pd.DataFrame:
     df = pd.read_csv(path)
-    missing = set(NUMERIC + CATEGORICAL + ["Churn"]) - set(df.columns)
+
+    missing = set(NUMERIC + CATEGORICAL + [TARGET]) - set(df.columns)
+
     if missing:
         raise ValueError(f"в данных нет колонок: {sorted(missing)}")
-    if len(df) < 1000:
-        raise ValueError(f"слишком мало строк: {len(df)}")
-    if not set(df["Churn"].unique()) <= {"Yes", "No"}:
-        raise ValueError(f"неожиданные значения таргета: {df['Churn'].unique()[:5]}")
-    df["TotalCharges"] = pd.to_numeric(df["TotalCharges"], errors="coerce")
-    df["churn"] = (df["Churn"] == "Yes").astype(int)
+
     return df
 
 
 def build_pipeline(c: float) -> Pipeline:
     preprocess = ColumnTransformer([
-        ("num", Pipeline([("impute", SimpleImputer(strategy="median")),
-                          ("scale", StandardScaler())]), NUMERIC),
-        ("cat", Pipeline([("impute", SimpleImputer(strategy="most_frequent")),
-                          ("onehot", OneHotEncoder(handle_unknown="ignore"))]), CATEGORICAL),
+        (
+            "num",
+            Pipeline([
+                ("impute", SimpleImputer(strategy="median")),
+                ("scale", StandardScaler()),
+            ]),
+            NUMERIC,
+        ),
+        (
+            "cat",
+            Pipeline([
+                ("impute", SimpleImputer(strategy="most_frequent")),
+                ("onehot", OneHotEncoder(handle_unknown="ignore")),
+            ]),
+            CATEGORICAL,
+        ),
     ])
-    return Pipeline([("preprocess", preprocess), ("model", LogisticRegression(max_iter=1000, C=c))])
+
+    return Pipeline([
+        ("preprocess", preprocess),
+        ("model", LogisticRegression(max_iter=1000, C=c)),
+    ])
 
 
-def champion_auc(client: MlflowClient) -> tuple[str | None, float | None]:
+def champion_score(
+    client: MlflowClient,
+) -> tuple[str | None, float | None]:
+
     try:
-        mv = client.get_model_version_by_alias(MODEL_NAME, "champion")
+        version = client.get_model_version_by_alias(
+            MODEL_NAME,
+            "champion",
+        )
     except MlflowException:
         return None, None
-    return mv.version, client.get_run(mv.run_id).data.metrics.get("roc_auc")
+
+    score = client.get_run(
+        version.run_id
+    ).data.metrics.get("pr_auc")
+
+    return version.version, score
 
 
 def main() -> dict:
     df = load_and_validate(DATA_PATH)
-    features = NUMERIC + CATEGORICAL
-    x_train, x_test, y_train, y_test = train_test_split(
-        df[features], df["churn"], test_size=0.2, stratify=df["churn"], random_state=SEED)
 
-    pipeline = build_pipeline(C).fit(x_train, y_train)
+    features = NUMERIC + CATEGORICAL
+
+    x_train, x_test, y_train, y_test = train_test_split(
+        df[features],
+        df[TARGET],
+        test_size=0.2,
+        stratify=df[TARGET],
+        random_state=SEED,
+    )
+
+    pipeline = build_pipeline(C).fit(
+        x_train,
+        y_train,
+    )
+
     proba = pipeline.predict_proba(x_test)[:, 1]
-    auc = float(roc_auc_score(y_test, proba))
-    precision, recall, thresholds = precision_recall_curve(y_test, proba)
-    threshold = float(thresholds[recall[:-1] >= 0.70].max())
+
+    pr_auc = float(
+        average_precision_score(
+            y_test,
+            proba,
+        )
+    )
+
+    precision, recall, thresholds = precision_recall_curve(
+        y_test,
+        proba,
+    )
+
+    threshold = float(
+        thresholds[recall[:-1] >= 0.70].max()
+    )
+
+    data_md5 = hashlib.md5(
+        DATA_PATH.read_bytes()
+    ).hexdigest()
 
     mlflow.set_experiment(EXPERIMENT)
+
     client = MlflowClient()
+
     with mlflow.start_run() as run:
-        metadata = {"features": features, "threshold": round(threshold, 4), "n_train": len(x_train),
-                    "data_rows": len(df), "sklearn": sklearn.__version__}
-        mlflow.log_params({"C": C, "model": "LogisticRegression", "seed": SEED, "data": str(DATA_PATH)})
-        mlflow.log_metrics({"roc_auc": auc, "pr_auc": float(average_precision_score(y_test, proba)), "threshold": threshold})
-        mlflow.log_dict(metadata, "metadata.json")
-        info = mlflow.sklearn.log_model(pipeline, name="model", registered_model_name=MODEL_NAME,
-                                        skops_trusted_types=SKOPS_TRUSTED)
+
+        mlflow.log_params({
+            "C": C,
+            "seed": SEED,
+            "data_md5": data_md5,
+        })
+
+        mlflow.log_metric(
+            "pr_auc",
+            pr_auc,
+        )
+
+        metadata = {
+            "features": features,
+            "threshold": round(threshold, 4),
+        }
+
+        mlflow.log_dict(
+            metadata,
+            "metadata.json",
+        )
+
+        fig, ax = plt.subplots()
+
+        ax.plot(
+            recall,
+            precision,
+        )
+
+        ax.set_xlabel("Recall")
+        ax.set_ylabel("Precision")
+        ax.set_title("Precision-Recall curve")
+
+        mlflow.log_figure(
+            fig,
+            "pr_curve.png",
+        )
+
+        plt.close(fig)
+
+        info = mlflow.sklearn.log_model(
+            pipeline,
+            name="model",
+            registered_model_name=MODEL_NAME,
+            skops_trusted_types=SKOPS_TRUSTED,
+        )
+
         version = info.registered_model_version
 
-    old_version, old_auc = champion_auc(client)
-    promoted = old_auc is None or auc > old_auc + MIN_GAIN
-    client.set_registered_model_alias(MODEL_NAME, "challenger", version)
-    if promoted:
-        client.set_registered_model_alias(MODEL_NAME, "champion", version)
+    old_version, old_score = champion_score(client)
 
-    result = {"run_id": run.info.run_id, "version": version, "roc_auc": round(auc, 4),
-              "champion_before": old_version, "champion_auc_before": old_auc, "promoted": promoted}
-    print(json.dumps(result, ensure_ascii=False))
-    xcom = Path("/airflow/xcom")
-    if xcom.is_dir():
-        (xcom / "return.json").write_text(json.dumps(result))
+    promoted = (
+        old_score is None
+        or pr_auc > old_score + MIN_GAIN
+    )
+
+    client.set_registered_model_alias(
+        MODEL_NAME,
+        "challenger",
+        version,
+    )
+
+    if promoted:
+        client.set_registered_model_alias(
+            MODEL_NAME,
+            "champion",
+            version,
+        )
+
+    result = {
+        "run_id": run.info.run_id,
+        "version": version,
+        "pr_auc": round(pr_auc, 4),
+        "champion_before": old_version,
+        "champion_pr_auc_before": old_score,
+        "promoted": promoted,
+    }
+
+    print(
+        json.dumps(
+            result,
+            ensure_ascii=False,
+        )
+    )
+
     return result
 
 
