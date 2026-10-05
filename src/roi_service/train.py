@@ -5,23 +5,26 @@
 Новая версия всегда получает алиас challenger. Алиас champion она получает, только если
 ROC-AUC на отложенной выборке лучше, чем у текущего champion (или champion ещё нет).
 """
-import hashlib
 import json
 import os
 from pathlib import Path
+import hashlib
 
-import matplotlib.pyplot as plt
 import mlflow
 import pandas as pd
+import sklearn
 from mlflow import MlflowClient
 from mlflow.exceptions import MlflowException
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import average_precision_score, precision_recall_curve
+from sklearn.metrics import average_precision_score, precision_recall_curve, roc_auc_score
 from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import matplotlib.pyplot as plt
+
+from roi_service.config import settings
 
 DATA_PATH = Path(os.getenv("DATA_PATH", "data/college_major_roi.csv"))
 MODEL_NAME = os.getenv("MODEL_NAME", "roi")
@@ -40,17 +43,13 @@ SKOPS_TRUSTED = [
 
 NUMERIC = [
     "institution_selectivity_pctile",
-    "gpa",
     "had_internship",
-    "completed_on_time",
+    "gpa",
     "net_cost_usd",
-    "debt_usd",
-    "hs_baseline_10yr_usd",
 ]
 
 CATEGORICAL = [
     "major",
-    "major_category",
     "institution_tier",
     "region",
 ]
@@ -115,6 +114,9 @@ def champion_score(
 
 
 def main() -> dict:
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    mlflow.set_registry_uri(settings.mlflow_tracking_uri)
+    mlflow.set_experiment(EXPERIMENT)
     df = load_and_validate(DATA_PATH)
 
     features = NUMERIC + CATEGORICAL
@@ -154,7 +156,6 @@ def main() -> dict:
         DATA_PATH.read_bytes()
     ).hexdigest()
 
-    mlflow.set_experiment(EXPERIMENT)
 
     client = MlflowClient()
 
