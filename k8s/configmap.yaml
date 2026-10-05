@@ -4,5 +4,7 @@ metadata:
   name: roi-service-config
 data:
   LOG_LEVEL: "INFO"
-  MODEL_PATH: artifacts/model.joblib
-  PREDICTION_THRESHOLD: "0.5"
+  MODEL_PATH: artifact/model.joblib
+  MLFLOW_TRACKING_URI: http://mlflow.mlops:5000
+  MODEL_NAME: roi
+  MODEL_ALIAS: champion

@@ -1,7 +1,7 @@
 [project]
 name = "roi_service"
 version="0.2.0"
-description = "ML Task 1"
+description = "ML project"
 requires-python=">=3.11, <3.13"
 
 dependencies = [
@@ -10,9 +10,13 @@ dependencies = [
     "pydantic",
     "pydantic-settings",
     "pandas",
-    "scikit-learn",
+    "scikit-learn>=1.6,<1.7",
     "joblib",
-    "psycopg[binary]"
+    "psycopg[binary]",
+    "mlflow-skinny>=3.16,<4",
+    "skops>=0.11",
+    "prometheus-client>=0.21",
+    "prometheus-fastapi-instrumentator>=8",
 ]
 
 [dependency-groups]
@@ -32,7 +36,7 @@ module-name = "roi_service"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["integration:"]
+markers = ["integration: нужна база данных - адрес в DATABASE_URL"]
 
 [tool.ruff]
 line-length = 150
