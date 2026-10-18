@@ -173,7 +173,7 @@ mlops       ingress.networking.k8s.io/mlflow        traefik   mlflow.localhost  
 ```
 
 Зато после борьбы все-таки открылся локалхост с MLflow чему я был очень рад
-![MLFlow](https://github.com/doc/screenshots/Pasted image 20261005213241.png)
+![MLFlow](https://github.com/BovaM/Task-1/blob/main/docs/screenshots/Pasted%20image%2020261005213241.png)
 
 ### 2. Обучение реестр и гейт
 Тут получилась веселая ситуация потому что у меня модель с первого же прогона получилась очень хорошей и в итоге champion я мог менять только ручками
@@ -193,13 +193,13 @@ Created version '4' of model 'roi'.
 🧪 View experiment at: http://mlflow.localhost/#/experiments/1
 {"run_id": "63799b54e2e94a43bb86e0dbd07a97fa", "version": "4", "pr_auc": 0.9938, "champion_before": "1", "champion_pr_auc_before": 0.9938195254449789, "promoted": false}
  ```
-![MLFlow_models](https://github.com/doc/screenshots/Pasted image 20261005221204.png)
+![MLFlow_models](https://github.com/BovaM/Task-1/blob/main/docs/screenshots/Pasted%20image%2020261005221204.png)
 на картинке видно что у нас есть alias для моделей собственно champion и challenger
 
 ### 3. Сервис по alias и откат модели
 Руками меняем alias для моделей
 Как было мы видели посмотрим как стало
-![MLFlow_alias](https://github.com/doc/screenshots/Pasted image 20261005231508.png)
+![MLFlow_alias](https://github.com/BovaM/Task-1/blob/main/docs/screenshots/Pasted%20image%2020261005231508.png)
 
 Переставил метку champion
 {"status":"ok","model_version":"1","prediction_threshold":0.9858}
@@ -214,7 +214,7 @@ Created version '4' of model 'roi'.
 https://github.com/BovaM/Task-1/actions/runs/37375239697
 Довольно быстро на самом деле все получилось что даже как-то удивительно было относительно дургих частей работы
 
-![local_runner](https://github.com/doc/screenshots/Pasted image 20261005233126.png)
+![local_runner](https://github.com/BovaM/Task-1/blob/main/docs/screenshots/Pasted%20image%2020261005233126.png)
 
 ### 5. Версии данных в DVC
 Вынесли наш датасет из репозитория и теперь все в умном хранилище
@@ -248,8 +248,8 @@ Modified:
 
 
 Картинки
-![flow_dm5_1](https://github.com/doc/screenshots/Pasted image 20261006005558.png)
-![flow_dm5_2](https://github.com/doc/screenshots/Pasted image 20261006005623.png)
+![flow_dm5_1](https://github.com/BovaM/Task-1/blob/main/docs/screenshots/Pasted%20image%2020261006005558.png)
+![flow_dm5_2](https://github.com/BovaM/Task-1/blob/main/docs/screenshots/Pasted%20image%2020261006005623.png)
 
 ### 6. HPA и его автомасштабирование
 
