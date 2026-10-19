@@ -1,15 +1,16 @@
 """Обучение модели оттока: проверка данных, обучение, запись в MLflow, регистрация и гейт.
 
-  MLFLOW_TRACKING_URI=http://127.0.0.1:5000 uv run python -m roi.train
+  MLFLOW_TRACKING_URI=http://127.0.0.1:5000 uv run python -m roi_service.train
 
 Новая версия всегда получает алиас challenger. Алиас champion она получает, только если
-ROC-AUC на отложенной выборке лучше, чем у текущего champion (или champion ещё нет).
+PR-AUC на отложенной выборке лучше, чем у текущего champion (или champion ещё нет).
 """
 import hashlib
 import json
 import os
 from pathlib import Path
 
+import joblib
 import matplotlib.pyplot as plt
 import mlflow
 import pandas as pd
@@ -30,7 +31,7 @@ MODEL_NAME = os.getenv("MODEL_NAME", "roi")
 EXPERIMENT = os.getenv("MLFLOW_EXPERIMENT", "roi")
 
 C = float(os.getenv("C", "1.0"))
-MIN_GAIN = float(os.getenv("GATE_MIN_GAIN", "0.0"))
+MIN_GAIN = float(os.getenv("GATE_MIN_GAIN", "0.005"))
 
 SEED = 42
 
@@ -210,6 +211,7 @@ def main() -> dict:
 
     old_version, old_score = champion_score(client)
 
+
     promoted = (
         old_score is None
         or pr_auc > old_score + MIN_GAIN
@@ -228,6 +230,12 @@ def main() -> dict:
             version,
         )
 
+    bundle = {
+        "pipeline": pipeline,
+        "metadata": {**metadata, "model_version": version},
+    }
+    joblib.dump(bundle, settings.model_path)
+
     result = {
         "run_id": run.info.run_id,
         "version": version,
@@ -243,6 +251,10 @@ def main() -> dict:
             ensure_ascii=False,
         )
     )
+
+    xcom = Path("/airflow/xcom")
+    if xcom.is_dir():
+        (xcom / "return.json").write_text(json.dumps(result))
 
     return result
 

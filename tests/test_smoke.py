@@ -3,15 +3,18 @@ def test_predict_smoke(client, good_row):
     assert r.status_code == 200
     body = r.json()
     assert 0.0 <= body["score"] <= 1.0
-    assert body["churn"] in (0, 1)
+    assert body["positive_roi"] in (0, 1)
     assert body["latency_ms"] >= 0
     assert body["model_version"]
 
 
-def test_predict_handles_missing_total_charges(client, good_row):
-    r = client.post("/v1/predict", json={**good_row, "gpa": 0.0})
+def test_predict_handles_missing_missing_gpa(client, good_row):
+    r = client.post("/v1/predict", json={**good_row, "gpa": None})
     assert r.status_code == 200
 
+def test_predict_handles_missing_net_cost(client, good_row):
+    r = client.post("/v1/predict", json={**good_row, "net_cost_usd": None})
+    assert r.status_code == 200
 
 def test_batch_and_single_agree(client, good_row):
     s1 = client.post("/v1/predict", json=good_row).json()["score"]

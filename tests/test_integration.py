@@ -12,7 +12,9 @@ pytestmark = [
 
 
 def test_prediction_is_logged(client, good_row):
-    body = client.post("/v1/predict", json=good_row).json()
+    r = client.post("/v1/predict", json=good_row)
+    assert r.status_code == 200
+    body = r.json()
 
     with psycopg.connect(DATABASE_URL) as conn:
         row = conn.execute(
@@ -30,6 +32,9 @@ def test_prediction_is_logged(client, good_row):
 def test_garbage_logged_422(client):
     r = client.post("/v1/predict", json={"garbage": "abc"})
     assert r.status_code == 422
+    body = r.json()
+    assert body["request_id"]
+
     with psycopg.connect(DATABASE_URL) as conn:
         row = conn.execute(
             "SELECT status_code FROM predictions ORDER BY ts DESC LIMIT 1"
