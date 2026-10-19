@@ -2,8 +2,12 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: roi-service
+
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingupdate: {maxUnavalible: 0, maxSurge: 1}
   selector:
     matchLabels:
       app: roi-service
@@ -12,6 +16,7 @@ spec:
       labels:
         app: roi-service
     spec:
+      terminationGracePeriodSeconds: 15
       containers:
         - name: api
           image: roi-service:1.0
@@ -34,3 +39,6 @@ spec:
           resources:
             requests: {cpu: 100m, memory: 256Mi}
             limits: {cpu: "1", memory: 512Mi}
+          lifecycle:
+            preStop:
+              exec: {command: ["sh", "-c", "sleep 5"]}

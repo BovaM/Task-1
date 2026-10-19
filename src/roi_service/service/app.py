@@ -18,14 +18,16 @@ from prometheus_client import Counter, Gauge, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
-
+from typing import Literal
 from roi_service import db
 from roi_service.config import settings
 
-PREDICTIONS = Counter("roi_predictions_total", "Predictions by class", ["churn"])
+PREDICTIONS = Counter("roi_predictions_total", "Predictions by class", ["positive_roi"])
 SCORE = Histogram("roi_score", "Predicted roi", buckets=[i / 10 for i in range(11)])
 MODEL_INFO = Gauge("roi_model_info", "Model loaded by this pod", ["version"])
 LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1)  # штатные 0.1, 0.5, 1 с слишком грубые
+
+
 
 class Features(BaseModel):
     model_config = {"extra": "forbid"}
@@ -33,7 +35,7 @@ class Features(BaseModel):
     major: str = Field(min_length=1, max_length=100)
     institution_tier: str = Field(min_length=1, max_length=50)
     region: str = Field(min_length=1, max_length=50)
-    institution_selectivity_pctile: int = Field(ge=0, le=100)
+    institution_selectivity_pctile: int = Field(ge=0, le=102)
     had_internship: int = Field(ge=0, le=1)
     gpa: float | None = Field(default=None, ge=0, le=4.0)
     net_cost_usd: int | None = Field(default=None, ge=0, le=1_000_000)
@@ -42,7 +44,7 @@ class Prediction(BaseModel):
     #model_config = {"protected_namespaces": ()}
 
     score: float          # вероятность окупаемости
-    churn: int            # решение по порогу (0/1)
+    positive_roi: int            # решение по порогу (0/1)
     model_version: str
     request_id: str
     latency_ms: float
@@ -82,7 +84,6 @@ async def lifespan(app: FastAPI):
         )
 
         app.state.meta = metadata
-        app.state.threshold = float(metadata.get("threshold", 0.5))
 
     else:
         bundle = joblib.load(settings.model_path)
@@ -90,10 +91,9 @@ async def lifespan(app: FastAPI):
         app.state.pipeline = bundle["pipeline"]
         app.state.meta = bundle["metadata"]
         app.state.version = bundle["metadata"]["model_version"]
-        app.state.threshold = float(
-            bundle["metadata"].get("threshold", 0.5)
-        )
 
+    app.state.threshold = float(app.state.meta.get("threshold", 0.5))
+    
     db.init()
 
     yield
@@ -136,17 +136,18 @@ def predict(x: Features, bg: BackgroundTasks) -> Prediction:
 
     bg.add_task(db.save_prediction, request_id, payload, score, app.state.version, latency_ms, status_code=200)
 
-    churn = score >= app.state.meta["threshold"]
+    positive_roi = score >= app.state.meta["threshold"]
 
-    PREDICTIONS.labels(str(churn).lower()).inc()
+    PREDICTIONS.labels(str(positive_roi).lower()).inc()
     SCORE.observe(score)
     
-    return Prediction(score=score, churn=churn, model_version = app.state.version, request_id=request_id, latency_ms=latency_ms)
+    return Prediction(score=score, positive_roi=positive_roi, model_version = app.state.version, request_id=request_id, latency_ms=latency_ms)
 
 
 @app.exception_handler(RequestValidationError)
 async def on_validation_error(request: Request, exc: RequestValidationError):
-    content = {"detail": jsonable_encoder(exc.errors())}
+    request_id = str(uuid.uuid4())
+    content = {"detail": jsonable_encoder(exc.errors()), "request_id": request_id}
     if request.url.path != "/v1/predict":
         return JSONResponse(status_code=422, content=content)
 

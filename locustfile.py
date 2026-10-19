@@ -10,8 +10,8 @@ class RoiUser(HttpUser):
             "/v1/predict",
             json={
                 "major": "Computer Science",
-                "institution_tier": "Tier 1",
-                "region": "West",
+                "institution_tier": "top_public",
+                "region": "west",
                 "institution_selectivity_pctile": 80,
                 "had_internship": 1,
                 "gpa": 3.5,

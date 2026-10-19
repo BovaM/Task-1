@@ -27,7 +27,14 @@ jobs:
         with: {enable-cache: true}
       - run: uv sync --frozen
       - run: uv run ruff check .
-      - run: uv run pytest
+      - name: тесты; интеграционные должны работать
+        run: |
+          OUT=$(uv run pytest -q --color=no 2>&1) || { echo "$OUT"; exit 1; }
+          echo "$OUT"
+          if echo "$OUT" | grep -q "skipped"; then
+            echo "ОШИБКА: тесты пропущены в CI"
+            exit 1
+          fi
 
   build:
     needs: tests
@@ -39,13 +46,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/setup-buildx-action@v4
-      - uses: docker/build-push-action@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -68,7 +75,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}:sha-${GITHUB_SHA}" >> "$GITHUB_ENV"
-      - uses: docker/login-action@v4
+      - uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -108,25 +115,39 @@ jobs:
           kubectl set image deploy/roi-service api="$IMAGE"
           kubectl rollout status deploy/roi-service --timeout=180s
 
+
+      - name: мониторинг и DAG
+        run: |
+          kubectl apply -f k8s/monitoring/
+          kubectl -n mlops create configmap airflow-dags --from-file=dags/ \
+            --dry-run=client -o yaml | kubectl apply -f -
+          kubectl -n mlops exec deploy/airflow -- airflow variables set roi_image "$IMAGE"
+
+      - name: jq для smoke (на self-hosted runner его может не быть)
+        run: |
+          if ! command -v jq >/dev/null; then
+            if ! { apt-get update && apt-get install -y jq; }; then
+              curl -sSLo /usr/local/bin/jq https://github.com/jqlang/jq/releases/download/jq-1.7.1/jq-linux-amd64
+              chmod +x /usr/local/bin/jq
+            fi
+          fi
+
       - name: smoke
-        # через Ingress, как ходят пользователи: из сети kind узел виден по имени, Traefik слушает NodePort 30080
+        # через Ingress, как ходят пользовател - из сети kind узел виден по имени, Traefik слушает NodePort 30080
         run: |
           U="http://$KIND_CLUSTER-control-plane:30080"; H="Host: roi.localhost"
+          CHAMPION=$(curl --fail -s -H "Host: mlflow.localhost" "$U/api/2.0/mlflow/registered-models/alias?name=roi&alias=champion" | jq -r .model_version.version)
+          echo "champion в реестре: $CHAMPION"
 
-          curl --fail -s --retry 5 --retry-all-errors -H "$H" $U/health | tee health.json; echo
-          grep -Eq '"model_version":"[0-9]+' health.json
+          curl --fail -s -H "$H" "$U/health" -o health.json
+          cat health.json; echo
+          jq -e --arg v "$CHAMPION" '(.model_version | tostring) == $v' health.json >/dev/null
 
-          curl --fail -s -X POST -H "$H" $U/v1/predict -H "Content-Type: application/json" -d @good.json | tee pred.json; echo
+          curl --fail -s -X POST -H "$H" -H "Content-Type: application/json" -d @good.json "$U/v1/predict" | tee pred.json; echo
+          jq -e '.score >= 0 and .score <= 1 and (.positive_roi == 0 or .positive_roi == 1)' pred.json >/dev/null
+
+          curl --fail -s -H "$H" "$U/metrics" | grep -q "^roi_model_info{version=\"$CHAMPION\""
 
           sleep 2
-
           RID=$(jq -r .request_id pred.json)
           kubectl exec deploy/postgres -- psql -U postgres -d roi_service -tAc "SELECT count(*) FROM predictions WHERE request_id = '$RID'" | grep -qx 1
-
-      - name: диагностика
-        if: failure()
-        run:
-          kubectl get pods -A -o wide
-          kubectl get ingress -A
-          kubectl describe deploy/roi-service | tail -20
-          kubectl logs deploy/roi-service --tail=50 || true

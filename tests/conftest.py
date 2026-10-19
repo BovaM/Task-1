@@ -13,11 +13,11 @@ def client():
 @pytest.fixture()
 def good_row():
     return {
-        "major": "medicine",
-        "institution_tier": "top",
-        "region": "USA",
-        "institution_selectivity_pctile": 35,
-        "had_internship": 1,
-        "gpa": 3.0,
-        "net_cost_usd": 500000
+        "major": "biology",
+        "institution_tier": "mid_tier",
+        "region": "south",
+        "institution_selectivity_pctile": 52,
+        "had_internship": 0,
+        "gpa": 2.58,
+        "net_cost_usd": 144400
     }
