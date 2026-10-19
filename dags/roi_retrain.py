@@ -9,9 +9,9 @@ rollout   перезапуск roi-service: новые поды загрузят
 """
 from datetime import UTC, datetime
 
-from kubernetes import client, config
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
 from airflow.sdk import CronTriggerTimetable, Param, dag, task
+from kubernetes import client, config
 from kubernetes.client import models as k8s
 
 PULL = "uv run --no-sync dvc pull -r cluster data/college_major_roi.csv"

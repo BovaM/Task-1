@@ -10,6 +10,7 @@ import json
 import os
 from pathlib import Path
 
+import joblib
 import matplotlib.pyplot as plt
 import mlflow
 import pandas as pd
@@ -23,7 +24,6 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-import joblib
 from roi_service.config import settings
 
 DATA_PATH = Path(os.getenv("DATA_PATH", "data/college_major_roi.csv"))

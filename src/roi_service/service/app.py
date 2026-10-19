@@ -18,7 +18,7 @@ from prometheus_client import Counter, Gauge, Histogram
 from prometheus_fastapi_instrumentator import Instrumentator
 from pydantic import BaseModel, Field
 from starlette.background import BackgroundTask
-from typing import Literal
+
 from roi_service import db
 from roi_service.config import settings
 
