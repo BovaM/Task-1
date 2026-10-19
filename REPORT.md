@@ -17,6 +17,52 @@ flowchart LR
   PR[Prometheus] -->|/metrics| S
   PR --> G[Grafana]
 ```
+## QuickStart
+
+Требуется: Docker Desktop, kind, kubectl, helm, uv, bash (на Windows — Git Bash).
+
+```bash
+git clone <URL-репозитория> && cd <репозиторий>
+
+# 1. платформа: kind + Traefik + MLflow + Airflow + S3 + Prometheus/Grafana
+bash platform/up.sh
+
+# 2. данные (CSV лежит в DVC, а не в git)
+uv sync
+uv run dvc pull -r laptop
+
+# 3. первое обучение: в реестре появится версия с алиасом @champion
+MLFLOW_TRACKING_URI=http://mlflow.localhost uv run python -m roi_service.train
+
+# 4. деплой сервиса, мониторинга и DAG
+DB_PASSWORD=postgres bash scripts/local_deploy.sh
+
+# 5. ответ через Ingress
+curl --fail -s http://roi.localhost/health
+curl --fail -s -X POST http://roi.localhost/v1/predict \
+  -H "Content-Type: application/json" -d @good.json
+```
+
+Поды сервиса
+NAMESPACE            NAME                                                  READY   STATUS    RESTARTS   AGE
+kube-system          coredns-559f6c778d-6mt22                              1/1     Running   0          59m
+kube-system          coredns-559f6c778d-nmgpv                              1/1     Running   0          59m
+kube-system          etcd-mlpro-control-plane                              1/1     Running   0          59m
+kube-system          kindnet-m4267                                         1/1     Running   0          59m
+kube-system          kube-apiserver-mlpro-control-plane                    1/1     Running   0          59m
+kube-system          kube-controller-manager-mlpro-control-plane           1/1     Running   0          59m
+kube-system          kube-proxy-s9lbv                                      1/1     Running   0          59m
+kube-system          kube-scheduler-mlpro-control-plane                    1/1     Running   0          59m
+local-path-storage   local-path-provisioner-75f7fc7dc5-n5jpw               1/1     Running   0          59m
+mlops                airflow-76cc4bf974-86zpv                              1/1     Running   0          56m
+mlops                mlflow-9f98c4469-hbl82                                1/1     Running   0          56m
+mlops                rustfs-7bcddbcbfd-nv2bh                               1/1     Running   0          56m
+monitoring           monitoring-grafana-8694d54467-zrnvm                   3/3     Running   0          55m
+monitoring           monitoring-kube-prometheus-operator-55c8d7b6d-pt5dk   1/1     Running   0          55m
+monitoring           monitoring-kube-state-metrics-78fd56fc4b-wt5m4        1/1     Running   0          55m
+monitoring           prometheus-monitoring-kube-prometheus-prometheus-0    2/2     Running   0          55m
+traefik              traefik-6d9c545874-69btl                              1/1     Running   0          56m
+
 
 
 ## Хранилища для данных разных форматов
@@ -504,6 +550,13 @@ ceil(3 * 748 / 60) = ceil(37.4) = 38
 
 ## Часть 2
 Прогоны и что получилось
+
+
+1. Поднять трафик для дашборда Grafana (в отдельном окне)
+cd C:\Users\Piwi\Desktop\postupashki\Task-1-hw4
+$env:PYTHONUTF8="1"
+uv run python scripts/traffic.py --rps 10 --bad 0.02
+Не закрывай окно, пока снимаешь скрины.
 
 
 ## Часть 3 - 8 вопросов
